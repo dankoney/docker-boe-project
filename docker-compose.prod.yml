@@ -1,0 +1,9 @@
+# Production override: set public URLs so the browser can reach the API.
+# Use: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Replace api.yourdomain.com with your real API domain (e.g. api.shippers.org.gh).
+
+services:
+  frontend:
+    environment:
+      API_BASE_URL: https://api.yourdomain.com

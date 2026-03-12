@@ -1,0 +1,55 @@
+# Virtual environments
+venv/
+new_venv/
+env/
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE files
+.vscode/
+.cursor/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Streamlit - exclude secrets but allow config
+.streamlit/secrets.toml
+!.streamlit/config.yaml
+
+# Data files - keep essential folders for data loading
+# Only exclude large binary files and temporary data
+*.csv
+*.log
+
+# Large XML files (over 100MB) - use Git LFS if needed
+*.xml
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Incomplete pages - exclude from deployment
+frontend/pages/1_*
+frontend/pages/2_*
+frontend/pages/3_*

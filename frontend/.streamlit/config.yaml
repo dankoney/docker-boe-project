@@ -1,0 +1,25 @@
+# /frontend/.streamlit/config.yaml
+
+cookie:
+  # The key 'name' must be indented two spaces
+  name: "boe_stats_app_cookie"
+  # The key 'expiry_days' must be indented two spaces
+  expiry_days: 30
+  # The key 'key' must be indented two spaces
+  key: "d4R1p7Y_zE9qX8cW2nB6mK5jL3hG9fD4sA7tU2iO1eQ0aZ8yX3wV6uT5rS7qP9oN2mI4lH1kG3jF5eD8cE7bA9"
+
+credentials:
+  usernames:
+    # --- DEMO USER 1 ---
+    jdoe:
+      email: jdoe@example.com
+      name: Jane Doe
+      # This is the HASHED password for the plain text password 'password'
+      password: "$2b$12$twzQwn.Xa8/A511LcQEmW.xyQ0lNCnZEPHVtLEsJO2C8jlG6gmvg2"
+    
+    # --- DEMO USER 2 ---
+    asmith:
+      email: asmith@example.com
+      name: Alex Smith
+      # This is the HASHED password for the plain text password 'test1234'
+      password: "$2b$12$B69syeFazuiUq.144li5re.eNuYW2xwksuHygFiUSr904USMLyaUu"

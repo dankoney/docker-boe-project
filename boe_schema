@@ -1,0 +1,1210 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict GwUpS1kz91Uz5EK6ji6gEdgu152Tj5XgRKAK6jLc1KJQ8fRgBPzoQliuHhSohBP
+
+-- Dumped from database version 18.1
+-- Dumped by pg_dump version 18.1
+
+-- Started on 2026-02-01 12:02:19
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 5 (class 2615 OID 2200)
+-- Name: public; Type: SCHEMA; Schema: -; Owner: pg_database_owner
+--
+
+CREATE SCHEMA public;
+
+
+ALTER SCHEMA public OWNER TO pg_database_owner;
+
+--
+-- TOC entry 5177 (class 0 OID 0)
+-- Dependencies: 5
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: pg_database_owner
+--
+
+COMMENT ON SCHEMA public IS 'standard public schema';
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 233 (class 1259 OID 24597)
+-- Name: boe_header; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.boe_header (
+    id bigint NOT NULL,
+    declaration_date timestamp with time zone,
+    boe_approval_date timestamp with time zone,
+    regime character varying(6),
+    boe_no character varying(26),
+    bl_number character varying(102),
+    importer_tin character varying(42),
+    importer_name character varying(202),
+    importer_address character varying(502),
+    consignee_tin character varying(42),
+    consignee_name character varying(202),
+    consignee_address character varying(502),
+    item_hs_code character varying(22),
+    no_of_pkg bigint,
+    package_unit_cd character varying(8),
+    item_description text,
+    item_origin_country character varying(6),
+    zone character varying(8),
+    cpc character varying(12),
+    gross_weight numeric(20,4),
+    net_weight numeric(20,4),
+    port_of_loading character varying(12),
+    vessel_carrier character varying(202),
+    discharge_terminal character varying(402),
+    shipping_line_name character varying(402),
+    cargo_type character varying(6),
+    package_type character varying(402),
+    gate_out_confirmation_date timestamp with time zone,
+    final_date_of_discharge timestamp with time zone,
+    country_of_shipment character varying(402),
+    port_of_discharge character varying(402),
+    ingested_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.boe_header OWNER TO postgres;
+
+--
+-- TOC entry 232 (class 1259 OID 24596)
+-- Name: boe_header_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.boe_header_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.boe_header_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5178 (class 0 OID 0)
+-- Dependencies: 232
+-- Name: boe_header_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.boe_header_id_seq OWNED BY public.boe_header.id;
+
+
+--
+-- TOC entry 221 (class 1259 OID 16390)
+-- Name: boe_records; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.boe_records (
+    id bigint NOT NULL,
+    crn character varying(15) NOT NULL,
+    boe_no character varying(15) NOT NULL,
+    boe_date date NOT NULL,
+    bl_number character varying(20),
+    data jsonb NOT NULL
+);
+
+
+ALTER TABLE public.boe_records OWNER TO postgres;
+
+--
+-- TOC entry 220 (class 1259 OID 16389)
+-- Name: boe_records_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.boe_records_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.boe_records_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5179 (class 0 OID 0)
+-- Dependencies: 220
+-- Name: boe_records_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.boe_records_id_seq OWNED BY public.boe_records.id;
+
+
+--
+-- TOC entry 229 (class 1259 OID 16700)
+-- Name: commodity_groups; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.commodity_groups (
+    hscode character varying(10) NOT NULL,
+    data jsonb NOT NULL
+);
+
+
+ALTER TABLE public.commodity_groups OWNER TO postgres;
+
+--
+-- TOC entry 239 (class 1259 OID 65672)
+-- Name: email_verification_tokens; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.email_verification_tokens (
+    id integer NOT NULL,
+    user_id integer,
+    token character varying(255) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.email_verification_tokens OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1259 OID 65671)
+-- Name: email_verification_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.email_verification_tokens_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.email_verification_tokens_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5180 (class 0 OID 0)
+-- Dependencies: 238
+-- Name: email_verification_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.email_verification_tokens_id_seq OWNED BY public.email_verification_tokens.id;
+
+
+--
+-- TOC entry 223 (class 1259 OID 16537)
+-- Name: manifest_bl_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.manifest_bl_details (
+    bl_number character varying(50) NOT NULL,
+    bl_version_no integer NOT NULL,
+    crn character varying(50),
+    latest_bl boolean DEFAULT true,
+    shipment_type character varying(10),
+    master_bl_number character varying(50),
+    bl_type character(1),
+    no_of_sub_bls integer,
+    bl_status character varying(10),
+    to_be_itemized character(1),
+    ucr_number character varying(50),
+    no_of_containers integer,
+    port_of_loading character varying(10),
+    port_of_discharge character varying(10),
+    place_of_receipt character varying(10),
+    place_of_delivery character varying(10),
+    cargo_type_json jsonb,
+    marks_and_numbers text,
+    goods_description text,
+    no_of_packages integer,
+    unit character varying(10),
+    gross_weight numeric(10,2),
+    volume numeric(10,2),
+    no_of_vehicles integer,
+    imdg_codes character varying(100),
+    freight_amount numeric(10,2),
+    freight_currency character varying(10),
+    freight_type character varying(10),
+    shipper_name character varying(255),
+    shipper_address text,
+    consignee_name character varying(255),
+    consignee_address text,
+    first_notify_name character varying(255),
+    first_notify_address text,
+    second_notify_name character varying(255),
+    second_notify_address text,
+    third_notify_name character varying(255),
+    third_notify_address text,
+    submitted_party character varying(50),
+    submitted_date date,
+    packing_type_cd character(1),
+    detail_packing_type_cd character varying(10),
+    amendment_request_no character varying(50),
+    old_bl_number character varying(50),
+    old_bl_version_number integer,
+    user_remarks text
+);
+
+
+ALTER TABLE public.manifest_bl_details OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 16553)
+-- Name: manifest_container_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.manifest_container_details (
+    container_id integer NOT NULL,
+    bl_number character varying(50) NOT NULL,
+    bl_version_no integer NOT NULL,
+    container_no character varying(20) NOT NULL,
+    seal_number character varying(50),
+    container_type character varying(10),
+    container_size integer,
+    freight_indicator character varying(10),
+    load_status character(1),
+    maximum_payload numeric(10,2),
+    tare_weight numeric(10,2),
+    gross_weight numeric(10,2),
+    number_of_packages integer,
+    unit character varying(10),
+    iso_code character varying(10),
+    container_items jsonb
+);
+
+
+ALTER TABLE public.manifest_container_details OWNER TO postgres;
+
+--
+-- TOC entry 224 (class 1259 OID 16552)
+-- Name: manifest_container_details_container_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.manifest_container_details_container_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.manifest_container_details_container_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5181 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: manifest_container_details_container_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.manifest_container_details_container_id_seq OWNED BY public.manifest_container_details.container_id;
+
+
+--
+-- TOC entry 222 (class 1259 OID 16526)
+-- Name: manifest_header; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.manifest_header (
+    crn character varying(50) NOT NULL,
+    document_type character varying(10) NOT NULL,
+    document_name character varying(50),
+    document_number character varying(50),
+    message_type character varying(10),
+    sender_id character varying(50),
+    receiving_party character varying(50),
+    notify_parties jsonb,
+    rotation_no character varying(50) NOT NULL,
+    rotation_no_creation_date date,
+    vessel_name character varying(255),
+    voyage_no character varying(50),
+    carrier_code character varying(20),
+    carrier_name character varying(255),
+    vessel_nationality character varying(10),
+    coload_yn character(1),
+    inbound_outbound character(1),
+    transport_mode character varying(10),
+    port_of_discharge character varying(10),
+    port_of_loading character varying(10),
+    next_port_of_call character varying(10),
+    final_destination character varying(10),
+    shipping_agent_code character varying(20),
+    agent_name character varying(255),
+    customs_office_code character varying(20),
+    eta date,
+    etd timestamp without time zone,
+    issued_date date,
+    last_amended_at timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.manifest_header OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 16571)
+-- Name: manifest_vehicle_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.manifest_vehicle_details (
+    vehicle_id integer NOT NULL,
+    bl_number character varying(50) NOT NULL,
+    bl_version_no integer NOT NULL,
+    chassis_no character varying(50) NOT NULL,
+    model character varying(100),
+    make character varying(100)
+);
+
+
+ALTER TABLE public.manifest_vehicle_details OWNER TO postgres;
+
+--
+-- TOC entry 226 (class 1259 OID 16570)
+-- Name: manifest_vehicle_details_vehicle_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.manifest_vehicle_details_vehicle_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.manifest_vehicle_details_vehicle_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5182 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: manifest_vehicle_details_vehicle_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.manifest_vehicle_details_vehicle_id_seq OWNED BY public.manifest_vehicle_details.vehicle_id;
+
+
+--
+-- TOC entry 237 (class 1259 OID 65654)
+-- Name: password_reset_tokens; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.password_reset_tokens (
+    id integer NOT NULL,
+    user_id integer,
+    token character varying(255) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.password_reset_tokens OWNER TO postgres;
+
+--
+-- TOC entry 236 (class 1259 OID 65653)
+-- Name: password_reset_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.password_reset_tokens_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.password_reset_tokens_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5183 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: password_reset_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.password_reset_tokens_id_seq OWNED BY public.password_reset_tokens.id;
+
+
+--
+-- TOC entry 228 (class 1259 OID 16687)
+-- Name: port_codes; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.port_codes (
+    port_code character varying(10) NOT NULL,
+    data jsonb NOT NULL
+);
+
+
+ALTER TABLE public.port_codes OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 24580)
+-- Name: updated_commodity_groups; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.updated_commodity_groups (
+    hscode character varying(10) CONSTRAINT commodity_groups_hscode_not_null NOT NULL,
+    data jsonb CONSTRAINT commodity_groups_data_not_null NOT NULL,
+    package_header text
+);
+
+
+ALTER TABLE public.updated_commodity_groups OWNER TO postgres;
+
+--
+-- TOC entry 241 (class 1259 OID 65690)
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_sessions (
+    id integer NOT NULL,
+    user_id integer,
+    token_jti character varying(255) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_used timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    ip_address inet,
+    user_agent text
+);
+
+
+ALTER TABLE public.user_sessions OWNER TO postgres;
+
+--
+-- TOC entry 240 (class 1259 OID 65689)
+-- Name: user_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.user_sessions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.user_sessions_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5184 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: user_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.user_sessions_id_seq OWNED BY public.user_sessions.id;
+
+
+--
+-- TOC entry 235 (class 1259 OID 65630)
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    username character varying(50) NOT NULL,
+    email character varying(100) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    full_name character varying(100) NOT NULL,
+    role character varying(20) DEFAULT 'user'::character varying,
+    is_active boolean DEFAULT true,
+    is_verified boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_login timestamp with time zone,
+    failed_login_attempts integer DEFAULT 0,
+    locked_until timestamp with time zone,
+    CONSTRAINT users_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'user'::character varying, 'viewer'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- TOC entry 234 (class 1259 OID 65629)
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5185 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- TOC entry 230 (class 1259 OID 17170)
+-- Name: vessel_records; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.vessel_records (
+    id bigint NOT NULL,
+    data jsonb NOT NULL,
+    loaded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.vessel_records OWNER TO postgres;
+
+--
+-- TOC entry 4922 (class 2604 OID 24600)
+-- Name: boe_header id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.boe_header ALTER COLUMN id SET DEFAULT nextval('public.boe_header_id_seq'::regclass);
+
+
+--
+-- TOC entry 4916 (class 2604 OID 16393)
+-- Name: boe_records id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.boe_records ALTER COLUMN id SET DEFAULT nextval('public.boe_records_id_seq'::regclass);
+
+
+--
+-- TOC entry 4932 (class 2604 OID 65675)
+-- Name: email_verification_tokens id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.email_verification_tokens ALTER COLUMN id SET DEFAULT nextval('public.email_verification_tokens_id_seq'::regclass);
+
+
+--
+-- TOC entry 4919 (class 2604 OID 16556)
+-- Name: manifest_container_details container_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_container_details ALTER COLUMN container_id SET DEFAULT nextval('public.manifest_container_details_container_id_seq'::regclass);
+
+
+--
+-- TOC entry 4920 (class 2604 OID 16574)
+-- Name: manifest_vehicle_details vehicle_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_vehicle_details ALTER COLUMN vehicle_id SET DEFAULT nextval('public.manifest_vehicle_details_vehicle_id_seq'::regclass);
+
+
+--
+-- TOC entry 4930 (class 2604 OID 65657)
+-- Name: password_reset_tokens id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.password_reset_tokens ALTER COLUMN id SET DEFAULT nextval('public.password_reset_tokens_id_seq'::regclass);
+
+
+--
+-- TOC entry 4934 (class 2604 OID 65693)
+-- Name: user_sessions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_sessions ALTER COLUMN id SET DEFAULT nextval('public.user_sessions_id_seq'::regclass);
+
+
+--
+-- TOC entry 4924 (class 2604 OID 65633)
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- TOC entry 4974 (class 2606 OID 24606)
+-- Name: boe_header boe_header_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.boe_header
+    ADD CONSTRAINT boe_header_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4939 (class 2606 OID 16404)
+-- Name: boe_records boe_records_crn_boe_no_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.boe_records
+    ADD CONSTRAINT boe_records_crn_boe_no_key UNIQUE (crn, boe_no);
+
+
+--
+-- TOC entry 4941 (class 2606 OID 16402)
+-- Name: boe_records boe_records_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.boe_records
+    ADD CONSTRAINT boe_records_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4958 (class 2606 OID 16708)
+-- Name: commodity_groups commodity_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.commodity_groups
+    ADD CONSTRAINT commodity_groups_pkey PRIMARY KEY (hscode);
+
+
+--
+-- TOC entry 5008 (class 2606 OID 65681)
+-- Name: email_verification_tokens email_verification_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.email_verification_tokens
+    ADD CONSTRAINT email_verification_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5010 (class 2606 OID 65683)
+-- Name: email_verification_tokens email_verification_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.email_verification_tokens
+    ADD CONSTRAINT email_verification_tokens_token_key UNIQUE (token);
+
+
+--
+-- TOC entry 4948 (class 2606 OID 16546)
+-- Name: manifest_bl_details manifest_bl_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_bl_details
+    ADD CONSTRAINT manifest_bl_details_pkey PRIMARY KEY (bl_number, bl_version_no);
+
+
+--
+-- TOC entry 4950 (class 2606 OID 16564)
+-- Name: manifest_container_details manifest_container_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_container_details
+    ADD CONSTRAINT manifest_container_details_pkey PRIMARY KEY (container_id);
+
+
+--
+-- TOC entry 4946 (class 2606 OID 16536)
+-- Name: manifest_header manifest_header_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_header
+    ADD CONSTRAINT manifest_header_pkey PRIMARY KEY (crn);
+
+
+--
+-- TOC entry 4952 (class 2606 OID 16580)
+-- Name: manifest_vehicle_details manifest_vehicle_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_vehicle_details
+    ADD CONSTRAINT manifest_vehicle_details_pkey PRIMARY KEY (vehicle_id);
+
+
+--
+-- TOC entry 5004 (class 2606 OID 65663)
+-- Name: password_reset_tokens password_reset_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5006 (class 2606 OID 65665)
+-- Name: password_reset_tokens password_reset_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_token_key UNIQUE (token);
+
+
+--
+-- TOC entry 4956 (class 2606 OID 16695)
+-- Name: port_codes port_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.port_codes
+    ADD CONSTRAINT port_codes_pkey PRIMARY KEY (port_code);
+
+
+--
+-- TOC entry 4972 (class 2606 OID 24588)
+-- Name: updated_commodity_groups updated_commodity_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.updated_commodity_groups
+    ADD CONSTRAINT updated_commodity_groups_pkey PRIMARY KEY (hscode);
+
+
+--
+-- TOC entry 5016 (class 2606 OID 65702)
+-- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5018 (class 2606 OID 65704)
+-- Name: user_sessions user_sessions_token_jti_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_token_jti_key UNIQUE (token_jti);
+
+
+--
+-- TOC entry 4996 (class 2606 OID 65652)
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- TOC entry 4998 (class 2606 OID 65648)
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5000 (class 2606 OID 65650)
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key UNIQUE (username);
+
+
+--
+-- TOC entry 4967 (class 2606 OID 17179)
+-- Name: vessel_records vessel_records_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.vessel_records
+    ADD CONSTRAINT vessel_records_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4942 (class 1259 OID 16406)
+-- Name: idx_bl_number; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_bl_number ON public.boe_records USING btree (bl_number);
+
+
+--
+-- TOC entry 4975 (class 1259 OID 32778)
+-- Name: idx_boe_bl_number; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_bl_number ON public.boe_header USING btree (bl_number);
+
+
+--
+-- TOC entry 4943 (class 1259 OID 16405)
+-- Name: idx_boe_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_date ON public.boe_records USING btree (boe_date);
+
+
+--
+-- TOC entry 4976 (class 1259 OID 32774)
+-- Name: idx_boe_dates_nn; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_dates_nn ON public.boe_header USING btree (gate_out_confirmation_date, final_date_of_discharge) WHERE ((gate_out_confirmation_date IS NOT NULL) AND (final_date_of_discharge IS NOT NULL));
+
+
+--
+-- TOC entry 4977 (class 1259 OID 32776)
+-- Name: idx_boe_demurrage_covering; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_demurrage_covering ON public.boe_header USING btree (cargo_type, port_of_discharge, package_type, boe_approval_date) INCLUDE (boe_no, importer_tin, bl_number, item_hs_code, shipping_line_name, gate_out_confirmation_date, final_date_of_discharge);
+
+
+--
+-- TOC entry 4978 (class 1259 OID 32775)
+-- Name: idx_boe_filter_1; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_filter_1 ON public.boe_header USING btree (cargo_type, port_of_discharge, package_type, boe_approval_date);
+
+
+--
+-- TOC entry 4979 (class 1259 OID 32772)
+-- Name: idx_boe_filter_main; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_filter_main ON public.boe_header USING btree (boe_approval_date, cargo_type, port_of_discharge, package_type);
+
+
+--
+-- TOC entry 4980 (class 1259 OID 32773)
+-- Name: idx_boe_group_dates; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_group_dates ON public.boe_header USING btree (boe_no, gate_out_confirmation_date, final_date_of_discharge);
+
+
+--
+-- TOC entry 4981 (class 1259 OID 24609)
+-- Name: idx_boe_header_approval_date_desc; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_approval_date_desc ON public.boe_header USING btree (boe_approval_date DESC);
+
+
+--
+-- TOC entry 4982 (class 1259 OID 24617)
+-- Name: idx_boe_header_bl_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_bl_date ON public.boe_header USING btree (bl_number, boe_approval_date DESC);
+
+
+--
+-- TOC entry 4983 (class 1259 OID 24611)
+-- Name: idx_boe_header_bl_number; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_bl_number ON public.boe_header USING btree (bl_number);
+
+
+--
+-- TOC entry 4984 (class 1259 OID 24616)
+-- Name: idx_boe_header_boe_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_boe_date ON public.boe_header USING btree (boe_no, boe_approval_date DESC);
+
+
+--
+-- TOC entry 4985 (class 1259 OID 24610)
+-- Name: idx_boe_header_boe_no; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_boe_no ON public.boe_header USING btree (boe_no);
+
+
+--
+-- TOC entry 4986 (class 1259 OID 24615)
+-- Name: idx_boe_header_hs6_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_hs6_date ON public.boe_header USING btree ("left"((item_hs_code)::text, 6), boe_approval_date DESC);
+
+
+--
+-- TOC entry 4987 (class 1259 OID 24613)
+-- Name: idx_boe_header_hs_chapter; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_hs_chapter ON public.boe_header USING btree ("left"((item_hs_code)::text, 4));
+
+
+--
+-- TOC entry 4988 (class 1259 OID 24612)
+-- Name: idx_boe_header_hs_code; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_hs_code ON public.boe_header USING btree (item_hs_code);
+
+
+--
+-- TOC entry 4989 (class 1259 OID 24614)
+-- Name: idx_boe_header_hs_heading; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_header_hs_heading ON public.boe_header USING btree ("left"((item_hs_code)::text, 6));
+
+
+--
+-- TOC entry 4990 (class 1259 OID 32860)
+-- Name: idx_boe_shipping_trgm; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_shipping_trgm ON public.boe_header USING gin (shipping_line_name public.gin_trgm_ops);
+
+
+--
+-- TOC entry 4991 (class 1259 OID 32777)
+-- Name: idx_boe_tin; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_boe_tin ON public.boe_header USING btree (importer_tin);
+
+
+--
+-- TOC entry 4959 (class 1259 OID 16710)
+-- Name: idx_commodity_cargo_group; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_commodity_cargo_group ON public.commodity_groups USING btree (((data ->> 'CargoGroup'::text)));
+
+
+--
+-- TOC entry 4960 (class 1259 OID 16709)
+-- Name: idx_commodity_data_gin; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_commodity_data_gin ON public.commodity_groups USING gin (data);
+
+
+--
+-- TOC entry 4961 (class 1259 OID 16711)
+-- Name: idx_commodity_local_code; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_commodity_local_code ON public.commodity_groups USING btree (((data ->> 'LocalCode'::text)));
+
+
+--
+-- TOC entry 4944 (class 1259 OID 16407)
+-- Name: idx_data_gin; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_data_gin ON public.boe_records USING gin (data);
+
+
+--
+-- TOC entry 5011 (class 1259 OID 65715)
+-- Name: idx_email_verification_tokens_token; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_email_verification_tokens_token ON public.email_verification_tokens USING btree (token);
+
+
+--
+-- TOC entry 5012 (class 1259 OID 65716)
+-- Name: idx_email_verification_tokens_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_email_verification_tokens_user_id ON public.email_verification_tokens USING btree (user_id);
+
+
+--
+-- TOC entry 4962 (class 1259 OID 17180)
+-- Name: idx_gin_vessel_data; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_gin_vessel_data ON public.vessel_records USING gin (data);
+
+
+--
+-- TOC entry 5001 (class 1259 OID 65713)
+-- Name: idx_password_reset_tokens_token; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_password_reset_tokens_token ON public.password_reset_tokens USING btree (token);
+
+
+--
+-- TOC entry 5002 (class 1259 OID 65714)
+-- Name: idx_password_reset_tokens_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_password_reset_tokens_user_id ON public.password_reset_tokens USING btree (user_id);
+
+
+--
+-- TOC entry 4953 (class 1259 OID 16697)
+-- Name: idx_port_country; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_port_country ON public.port_codes USING btree (((data ->> 'Country'::text)));
+
+
+--
+-- TOC entry 4954 (class 1259 OID 16696)
+-- Name: idx_port_data_gin; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_port_data_gin ON public.port_codes USING gin (data);
+
+
+--
+-- TOC entry 5013 (class 1259 OID 65717)
+-- Name: idx_user_sessions_jti; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_sessions_jti ON public.user_sessions USING btree (token_jti);
+
+
+--
+-- TOC entry 5014 (class 1259 OID 65718)
+-- Name: idx_user_sessions_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_sessions_user_id ON public.user_sessions USING btree (user_id);
+
+
+--
+-- TOC entry 4992 (class 1259 OID 65712)
+-- Name: idx_users_active; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_users_active ON public.users USING btree (is_active);
+
+
+--
+-- TOC entry 4993 (class 1259 OID 65711)
+-- Name: idx_users_email; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_users_email ON public.users USING btree (email);
+
+
+--
+-- TOC entry 4994 (class 1259 OID 65710)
+-- Name: idx_users_username; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_users_username ON public.users USING btree (username);
+
+
+--
+-- TOC entry 4963 (class 1259 OID 17182)
+-- Name: idx_vessel_name; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_vessel_name ON public.vessel_records USING btree (((data ->> 'Vessel Name'::text)));
+
+
+--
+-- TOC entry 4964 (class 1259 OID 17181)
+-- Name: idx_vessel_official_number; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX idx_vessel_official_number ON public.vessel_records USING btree (((data ->> 'Official Number'::text)));
+
+
+--
+-- TOC entry 4965 (class 1259 OID 17183)
+-- Name: idx_vessel_type; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_vessel_type ON public.vessel_records USING btree (((data ->> 'Vessel Type'::text)));
+
+
+--
+-- TOC entry 4968 (class 1259 OID 24589)
+-- Name: updated_commodity_groups_data_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX updated_commodity_groups_data_idx ON public.updated_commodity_groups USING gin (data);
+
+
+--
+-- TOC entry 4969 (class 1259 OID 24590)
+-- Name: updated_commodity_groups_expr_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX updated_commodity_groups_expr_idx ON public.updated_commodity_groups USING btree (((data ->> 'CargoGroup'::text)));
+
+
+--
+-- TOC entry 4970 (class 1259 OID 24591)
+-- Name: updated_commodity_groups_expr_idx1; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX updated_commodity_groups_expr_idx1 ON public.updated_commodity_groups USING btree (((data ->> 'LocalCode'::text)));
+
+
+--
+-- TOC entry 5023 (class 2606 OID 65684)
+-- Name: email_verification_tokens email_verification_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.email_verification_tokens
+    ADD CONSTRAINT email_verification_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 5019 (class 2606 OID 16547)
+-- Name: manifest_bl_details manifest_bl_details_crn_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_bl_details
+    ADD CONSTRAINT manifest_bl_details_crn_fkey FOREIGN KEY (crn) REFERENCES public.manifest_header(crn);
+
+
+--
+-- TOC entry 5020 (class 2606 OID 16565)
+-- Name: manifest_container_details manifest_container_details_bl_number_bl_version_no_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_container_details
+    ADD CONSTRAINT manifest_container_details_bl_number_bl_version_no_fkey FOREIGN KEY (bl_number, bl_version_no) REFERENCES public.manifest_bl_details(bl_number, bl_version_no);
+
+
+--
+-- TOC entry 5021 (class 2606 OID 16581)
+-- Name: manifest_vehicle_details manifest_vehicle_details_bl_number_bl_version_no_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.manifest_vehicle_details
+    ADD CONSTRAINT manifest_vehicle_details_bl_number_bl_version_no_fkey FOREIGN KEY (bl_number, bl_version_no) REFERENCES public.manifest_bl_details(bl_number, bl_version_no);
+
+
+--
+-- TOC entry 5022 (class 2606 OID 65666)
+-- Name: password_reset_tokens password_reset_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 5024 (class 2606 OID 65705)
+-- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+-- Completed on 2026-02-01 12:02:20
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict GwUpS1kz91Uz5EK6ji6gEdgu152Tj5XgRKAK6jLc1KJQ8fRgBPzoQliuHhSohBP
+

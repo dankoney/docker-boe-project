@@ -1,0 +1,12 @@
+streamlit
+streamlit-authenticator
+streamlit-cookies-manager
+itables
+requests # To call your FastAPI
+pandas
+plotly
+altair
+pyyaml
+uvicorn[standard]
+fastapi
+psycopg2-binary
