@@ -1,6 +1,6 @@
 # Deploy BOE Project (Streamlit + FastAPI + PostgreSQL) to Plesk
 
-This guide walks you through deploying the **boe-project** (Demurrage Analytics) to a Plesk VPS using Docker.
+This guide walks you through deploying **Demurrage Analytics** to a Plesk VPS using Docker. Repo: [github.com/dankoney/docker-boe-project](https://github.com/dankoney/docker-boe-project).
 
 ---
 
@@ -55,10 +55,10 @@ cd /var/www/boe-project
 
 ```bash
 cd /var/www/boe-project
-git clone https://github.com/YOUR_USERNAME/docker-boe-project.git .
+git clone https://github.com/dankoney/docker-boe-project.git .
 ```
 
-(Replace `YOUR_USERNAME` with your GitHub username. If the repo is private, use a Personal Access Token when prompted.)
+If the repo is private, use your GitHub username and a [Personal Access Token](https://github.com/settings/tokens) as the password when prompted.
 
 ### 2.2 Create production `.env` in the project root
 
@@ -97,9 +97,9 @@ Do **not** commit `.env`; keep it only on the server.
 
 The Streamlit app runs in the **browser** and calls the API by URL. That URL must be the **public** API URL, not the internal Docker hostname.
 
-**Option A – Use a production override file (recommended)**
+**Option A – Use the production override file (recommended)**
 
-Edit `docker-compose.prod.yml` in the project root: set `API_BASE_URL` to your public API URL (e.g. `https://api.yourdomain.com`). Then run:
+Edit `docker-compose.prod.yml` in the project root: set `API_BASE_URL` to your public API URL (e.g. `https://api.yourdomain.com`). The file is already in the repo. Then run:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
