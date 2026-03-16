@@ -1,8 +1,11 @@
+import csv
+import io
 import json
 import os
 import psycopg2.extras
 import psycopg2
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import Response
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import date, datetime
 
@@ -1118,14 +1121,771 @@ async def get_demurrage_report(
     except psycopg2.Error as e:
         print(f"Database error in /reports/demurrage: {e}")
         raise HTTPException(status_code=500, detail="Database error during demurrage report generation.")
-        
     except Exception as e:
         print(f"General error in /reports/demurrage: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
-        
     finally:
         if conn:
             conn.close()
+
+
+# ----------------------------------------------
+# --- BOE HEADER ANALYTICS (from boe_header table) ---
+# ----------------------------------------------
+
+@app.get("/reports/boe-header-suggestions/vessel", response_model=List[Dict[str, str]])
+async def get_boe_header_vessel_suggestions(keyword: str = Query(..., min_length=3)):
+    """Vessel suggestions from boe_header.vessel_carrier so filters match the same table as analytics."""
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT vessel_carrier AS name
+            FROM boe_header
+            WHERE vessel_carrier IS NOT NULL AND TRIM(vessel_carrier::text) != ''
+            AND vessel_carrier::text ILIKE %s
+            ORDER BY vessel_carrier
+            LIMIT 20
+        """, (f"%{keyword.strip()}%",))
+        return [{"name": row[0]} for row in cursor.fetchall() if row[0]]
+    except Exception as e:
+        print(f"Error in boe-header vessel suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Vessel suggestion error.")
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/reports/boe-header-suggestions/importer", response_model=List[Dict[str, str]])
+async def get_boe_header_importer_suggestions(keyword: str = Query(..., min_length=3)):
+    """Importer suggestions from boe_header (importer_name, importer_tin) so filters match the same table as analytics."""
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT importer_name, importer_tin
+            FROM boe_header
+            WHERE (importer_name IS NOT NULL AND importer_name::text ILIKE %s)
+               OR (importer_tin IS NOT NULL AND importer_tin::text ILIKE %s)
+            ORDER BY importer_name
+            LIMIT 20
+        """, (f"%{keyword.strip()}%", f"%{keyword.strip()}%"))
+        return [
+            {"name": row[0] or "", "importerTin": row[1] if row[1] is not None else ""}
+            for row in cursor.fetchall() if (row[0] or row[1])
+        ]
+    except Exception as e:
+        print(f"Error in boe-header importer suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Importer suggestion error.")
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/reports/boe-header-analytics/filter-options", response_model=Dict[str, List[str]])
+async def get_boe_header_filter_options(
+    start_date: date = Query(..., description="BOE approval date start"),
+    end_date: date = Query(..., description="BOE approval date end"),
+):
+    """Return distinct package_type, cargo_type, port_of_discharge, ports_loading for the date range (to populate dropdowns)."""
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT package_type::text
+            FROM boe_header
+            WHERE boe_approval_date::date BETWEEN %s AND %s
+            AND package_type IS NOT NULL AND TRIM(package_type::text) != ''
+            ORDER BY package_type
+        """, (start_date, end_date))
+        package_types = [row[0] for row in cursor.fetchall() if row[0]]
+        cursor.execute("""
+            SELECT DISTINCT cargo_type::text
+            FROM boe_header
+            WHERE boe_approval_date::date BETWEEN %s AND %s
+            AND cargo_type IS NOT NULL
+            ORDER BY cargo_type
+        """, (start_date, end_date))
+        cargo_types = [row[0] or "N/A" for row in cursor.fetchall()]
+        cursor.execute("""
+            SELECT DISTINCT port_of_discharge::text
+            FROM boe_header
+            WHERE boe_approval_date::date BETWEEN %s AND %s
+            AND port_of_discharge IS NOT NULL AND TRIM(port_of_discharge::text) != ''
+            ORDER BY port_of_discharge
+        """, (start_date, end_date))
+        ports_discharge = [row[0] for row in cursor.fetchall() if row[0]]
+        cursor.execute("""
+            SELECT DISTINCT port_of_loading::text
+            FROM boe_header
+            WHERE boe_approval_date::date BETWEEN %s AND %s
+            AND port_of_loading IS NOT NULL AND TRIM(port_of_loading::text) != ''
+            ORDER BY port_of_loading
+        """, (start_date, end_date))
+        ports_loading = [row[0] for row in cursor.fetchall() if row[0]]
+        return {"package_types": package_types, "cargo_types": cargo_types, "ports_discharge": ports_discharge, "ports_loading": ports_loading}
+    except Exception as e:
+        print(f"Error in filter-options: {e}")
+        raise HTTPException(status_code=500, detail="Filter options error.")
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/reports/boe-header-suggestions/port-loading", response_model=List[Dict[str, str]])
+async def get_boe_header_port_loading_suggestions(
+    start_date: date = Query(..., description="BOE approval date start"),
+    end_date: date = Query(..., description="BOE approval date end"),
+    keyword: str = Query(..., min_length=2),
+):
+    """Port of loading suggestions from boe_header in date range (ILIKE keyword)."""
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT port_of_loading::text AS name
+            FROM boe_header
+            WHERE boe_approval_date::date BETWEEN %s AND %s
+            AND port_of_loading IS NOT NULL AND TRIM(port_of_loading::text) != ''
+            AND port_of_loading::text ILIKE %s
+            ORDER BY port_of_loading
+            LIMIT 20
+        """, (start_date, end_date, f"%{keyword.strip()}%"))
+        return [{"name": row[0]} for row in cursor.fetchall() if row[0]]
+    except Exception as e:
+        print(f"Error in port-loading suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Port of loading suggestion error.")
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/reports/boe-header-analytics", response_model=Dict[str, Any])
+async def get_boe_header_analytics(
+    start_date: date = Query(..., description="BOE approval date start (inclusive)"),
+    end_date: date = Query(..., description="BOE approval date end (inclusive)"),
+    boe_no: Optional[str] = Query(None, description="BOE number (exact)"),
+    bl_number: Optional[str] = Query(None, description="BL number (exact)"),
+    importer_tin: Optional[str] = Query(None, description="Importer TIN (exact, single)"),
+    importer_tins: Optional[List[str]] = Query(None, description="Importer TINs (multiple from suggestions)"),
+    importer_name_keywords: Optional[str] = Query(None, description="Importer name (partial match)"),
+    item_description_keywords: Optional[str] = Query(None, description="Item description (partial match)"),
+    hs_code_prefix: Optional[str] = Query(None, description="HS code prefix (e.g. 8703)"),
+    vessel_name_keywords: Optional[List[str]] = Query(None, description="Vessel name(s) from search; filters on vessel_carrier (partial match)"),
+    package_types: Optional[List[str]] = Query(None, description="Filter by package type (multi)"),
+    cargo_types: Optional[List[str]] = Query(None, description="Filter by cargo type (multi)"),
+    ports_discharge: Optional[List[str]] = Query(None, description="Filter by port of discharge (multi)"),
+    port_of_loading_keywords: Optional[List[str]] = Query(None, description="Port of loading (from suggestions, multi)"),
+    limit_records: int = Query(500, ge=50, le=5000, description="Page size for records table"),
+    offset: int = Query(0, ge=0, description="Offset for paginated records"),
+):
+    """
+    Analytics from boe_header. All aggregates use the full filtered dataset. The 'records' array is one page (limit_records, offset) for pagination.
+    """
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        where_clauses = ["b.boe_approval_date::date BETWEEN %s AND %s"]
+        params: List[Any] = [start_date, end_date]
+
+        vessel_names = [n.strip() for n in (vessel_name_keywords or []) if n and n.strip()]
+        if vessel_names:
+            # Match vessel name in vessel_carrier, shipping_line_name, or vessel_name (if column exists)
+            parts = []
+            for _ in vessel_names:
+                parts.append("(COALESCE(b.vessel_carrier,'') ILIKE %s OR COALESCE(b.shipping_line_name,'') ILIKE %s)")
+            where_clauses.append(f"({' OR '.join(parts)})")
+            for n in vessel_names:
+                params.append(f"%{n}%")
+                params.append(f"%{n}%")
+        if boe_no and boe_no.strip():
+            where_clauses.append("b.boe_no = %s")
+            params.append(boe_no.strip())
+        if bl_number and bl_number.strip():
+            where_clauses.append("b.bl_number = %s")
+            params.append(bl_number.strip())
+        if importer_tins and len(importer_tins) > 0:
+            tins_clean = [t.strip() for t in importer_tins if t and t.strip()]
+            if tins_clean:
+                placeholders = ", ".join(["%s"] * len(tins_clean))
+                where_clauses.append(f"b.importer_tin IN ({placeholders})")
+                params.extend(tins_clean)
+        elif importer_tin and importer_tin.strip():
+            where_clauses.append("b.importer_tin = %s")
+            params.append(importer_tin.strip())
+        if importer_name_keywords and importer_name_keywords.strip():
+            where_clauses.append("b.importer_name ILIKE %s")
+            params.append(f"%{importer_name_keywords.strip()}%")
+        if item_description_keywords and item_description_keywords.strip():
+            where_clauses.append("b.item_description ILIKE %s")
+            params.append(f"%{item_description_keywords.strip()}%")
+        if hs_code_prefix and hs_code_prefix.strip():
+            where_clauses.append("b.item_hs_code LIKE %s")
+            params.append(f"{hs_code_prefix.strip()}%")
+        pkg = [x.strip() for x in (package_types or []) if x and x.strip()]
+        if pkg:
+            placeholders = ", ".join(["%s"] * len(pkg))
+            where_clauses.append(f"b.package_type::text IN ({placeholders})")
+            params.extend(pkg)
+        cargo = [x.strip() for x in (cargo_types or []) if x and x.strip()]
+        if cargo:
+            placeholders = ", ".join(["%s"] * len(cargo))
+            where_clauses.append(f"b.cargo_type::text IN ({placeholders})")
+            params.extend(cargo)
+        ports_d = [x.strip() for x in (ports_discharge or []) if x and x.strip()]
+        if ports_d:
+            placeholders = ", ".join(["%s"] * len(ports_d))
+            where_clauses.append(f"b.port_of_discharge::text IN ({placeholders})")
+            params.extend(ports_d)
+        pol_kw = [x.strip() for x in (port_of_loading_keywords or []) if x and x.strip()]
+        if pol_kw:
+            parts = []
+            for _ in pol_kw:
+                parts.append("b.port_of_loading::text ILIKE %s")
+            where_clauses.append(f"({' OR '.join(parts)})")
+            for k in pol_kw:
+                params.append(f"%{k}%")
+
+        where_sql = " AND ".join(where_clauses)
+
+        # 1. Summary (total_unique_boe = distinct BOEs, total_items = line items)
+        cursor.execute(f"""
+            SELECT
+                COUNT(DISTINCT b.boe_no)::int AS total_unique_boe,
+                COUNT(*)::int AS total_items,
+                COALESCE(SUM(b.net_weight), 0)::float AS total_net_weight,
+                COALESCE(SUM(b.gross_weight), 0)::float AS total_gross_weight
+            FROM boe_header b
+            WHERE {where_sql}
+        """, tuple(params))
+        row = cursor.fetchone()
+        summary = {
+            "total_unique_boe": row["total_unique_boe"] or 0,
+            "total_items": row["total_items"] or 0,
+            "total_net_weight": round(float(row["total_net_weight"] or 0), 2),
+            "total_gross_weight": round(float(row["total_gross_weight"] or 0), 2),
+        }
+
+        # 2. Time series (by month): unique BOE count, item count, net weight
+        cursor.execute(f"""
+            SELECT
+                date_trunc('month', b.boe_approval_date)::date AS period,
+                COUNT(DISTINCT b.boe_no)::int AS unique_boe_count,
+                COUNT(*)::int AS item_count,
+                COALESCE(SUM(b.net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql}
+            GROUP BY date_trunc('month', b.boe_approval_date)
+            ORDER BY period
+        """, tuple(params))
+        time_series = [
+            {
+                "period": str(r["period"]),
+                "unique_boe_count": r["unique_boe_count"],
+                "item_count": r["item_count"],
+                "net_weight": round(float(r["net_weight"] or 0), 2),
+            }
+            for r in cursor.fetchall()
+        ]
+
+        # 3. Top importers (by net weight) with boe_count, item_count, avg_days_between, frequency
+        cursor.execute(f"""
+            SELECT
+                b.importer_name,
+                b.importer_tin,
+                COUNT(DISTINCT b.boe_no)::int AS boe_count,
+                COUNT(*)::int AS item_count,
+                COALESCE(SUM(b.net_weight), 0)::float AS net_weight,
+                MIN(b.boe_approval_date)::date AS first_date,
+                MAX(b.boe_approval_date)::date AS last_date
+            FROM boe_header b
+            WHERE {where_sql} AND (b.importer_name IS NOT NULL OR b.importer_tin IS NOT NULL)
+            GROUP BY b.importer_name, b.importer_tin
+            ORDER BY net_weight DESC
+            LIMIT 10
+        """, tuple(params))
+        top_importers = []
+        for r in cursor.fetchall():
+            boe_count = r["boe_count"] or 0
+            first_d = r["first_date"]
+            last_d = r["last_date"]
+            avg_days = None
+            if boe_count > 1 and first_d and last_d:
+                try:
+                    span_days = (last_d - first_d).days
+                except TypeError:
+                    span_days = int((last_d - first_d).total_seconds() / 86400)
+                avg_days = max(0, int(span_days / (boe_count - 1)))
+            if avg_days is None:
+                freq = "Single shipment"
+            elif avg_days <= 7:
+                freq = "Weekly or more"
+            elif avg_days <= 21:
+                freq = "Fortnightly to monthly"
+            elif avg_days <= 60:
+                freq = "Monthly"
+            elif avg_days <= 120:
+                freq = "Quarterly"
+            elif avg_days <= 365:
+                freq = "Yearly"
+            else:
+                freq = "Less than yearly"
+            top_importers.append({
+                "importer_name": r["importer_name"] or "N/A",
+                "importer_tin": r["importer_tin"] or "",
+                "boe_count": boe_count,
+                "item_count": r["item_count"] or 0,
+                "net_weight": round(float(r["net_weight"] or 0), 2),
+                "avg_days_between": avg_days,
+                "frequency": freq,
+            })
+
+        # 4. Top shipping lines (by net weight)
+        cursor.execute(f"""
+            SELECT shipping_line_name AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.shipping_line_name IS NOT NULL AND TRIM(b.shipping_line_name) != ''
+            GROUP BY shipping_line_name
+            ORDER BY net_weight DESC
+            LIMIT 10
+        """, tuple(params))
+        top_shipping_lines = [{"name": r["name"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 5. Top ports of loading (by net weight)
+        cursor.execute(f"""
+            SELECT port_of_loading AS port, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.port_of_loading IS NOT NULL AND TRIM(b.port_of_loading) != ''
+            GROUP BY port_of_loading
+            ORDER BY net_weight DESC
+            LIMIT 10
+        """, tuple(params))
+        top_ports_loading = [{"port": r["port"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 6. Top ports of discharge (by net weight)
+        cursor.execute(f"""
+            SELECT port_of_discharge AS port, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.port_of_discharge IS NOT NULL AND TRIM(b.port_of_discharge) != ''
+            GROUP BY port_of_discharge
+            ORDER BY net_weight DESC
+            LIMIT 10
+        """, tuple(params))
+        top_ports_discharge = [{"port": r["port"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 7. Top HS codes (4-digit, by net weight)
+        cursor.execute(f"""
+            SELECT LEFT(b.item_hs_code, 4) AS hs4, COUNT(*)::int AS count, COALESCE(SUM(b.net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.item_hs_code IS NOT NULL AND LENGTH(TRIM(b.item_hs_code)) >= 4
+            GROUP BY LEFT(b.item_hs_code, 4)
+            ORDER BY net_weight DESC
+            LIMIT 10
+        """, tuple(params))
+        top_hs_codes = [{"hs_code": r["hs4"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 8. Cargo type breakdown (by net weight)
+        cursor.execute(f"""
+            SELECT cargo_type AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.cargo_type IS NOT NULL
+            GROUP BY cargo_type
+            ORDER BY net_weight DESC
+        """, tuple(params))
+        cargo_type_breakdown = [{"name": r["name"] or "N/A", "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 9. Package type breakdown (by net weight)
+        cursor.execute(f"""
+            SELECT package_type AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+            FROM boe_header b
+            WHERE {where_sql} AND b.package_type IS NOT NULL AND TRIM(b.package_type) != ''
+            GROUP BY package_type
+            ORDER BY net_weight DESC
+            LIMIT 15
+        """, tuple(params))
+        package_type_breakdown = [{"name": r["name"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in cursor.fetchall()]
+
+        # 10. One page of records for table (paginated)
+        cursor.execute(f"""
+            SELECT b.boe_no, b.boe_approval_date, b.bl_number, b.importer_name, b.importer_tin,
+                   b.port_of_loading, b.port_of_discharge, b.shipping_line_name, b.vessel_carrier,
+                   b.item_hs_code, b.item_description, b.cargo_type, b.package_type, b.net_weight, b.gross_weight
+            FROM boe_header b
+            WHERE {where_sql}
+            ORDER BY b.boe_approval_date DESC
+            LIMIT %s OFFSET %s
+        """, tuple(params) + (limit_records, offset))
+        records = []
+        for r in cursor.fetchall():
+            records.append({
+                "boe_no": r["boe_no"],
+                "boe_approval_date": (r["boe_approval_date"].strftime("%Y-%m-%d") if hasattr(r["boe_approval_date"], "strftime") else str(r["boe_approval_date"])[:10]) if r["boe_approval_date"] else None,
+                "bl_number": r["bl_number"],
+                "importer_name": r["importer_name"],
+                "importer_tin": r["importer_tin"],
+                "port_of_loading": r["port_of_loading"],
+                "port_of_discharge": r["port_of_discharge"],
+                "shipping_line_name": r["shipping_line_name"],
+                "vessel_carrier": r.get("vessel_carrier"),
+                "item_hs_code": r["item_hs_code"],
+                "item_description": r.get("item_description"),
+                "cargo_type": r["cargo_type"],
+                "package_type": r["package_type"],
+                "net_weight": round(float(r["net_weight"] or 0), 2),
+                "gross_weight": round(float(r["gross_weight"] or 0), 2),
+            })
+
+        return {
+            "summary": summary,
+            "time_series": time_series,
+            "top_importers": top_importers,
+            "top_shipping_lines": top_shipping_lines,
+            "top_ports_loading": top_ports_loading,
+            "top_ports_discharge": top_ports_discharge,
+            "top_hs_codes": top_hs_codes,
+            "cargo_type_breakdown": cargo_type_breakdown,
+            "package_type_breakdown": package_type_breakdown,
+            "records": records,
+        }
+
+    except psycopg2.Error as e:
+        print(f"Database error in /reports/boe-header-analytics: {e}")
+        raise HTTPException(status_code=500, detail="Database error during BOE analytics.")
+    except Exception as e:
+        print(f"General error in /reports/boe-header-analytics: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+    finally:
+        if conn:
+            conn.close()
+
+
+def _boe_analytics_where_clauses(
+    start_date: date,
+    end_date: date,
+    boe_no: Optional[str],
+    bl_number: Optional[str],
+    importer_tin: Optional[str],
+    importer_tins: Optional[List[str]],
+    importer_name_keywords: Optional[str],
+    item_description_keywords: Optional[str],
+    hs_code_prefix: Optional[str],
+    vessel_name_keywords: Optional[List[str]],
+    package_types: Optional[List[str]] = None,
+    cargo_types: Optional[List[str]] = None,
+    ports_discharge: Optional[List[str]] = None,
+    port_of_loading_keywords: Optional[List[str]] = None,
+) -> Tuple[str, List[Any]]:
+    """Build WHERE SQL and params for BOE header analytics (shared by analytics and dimension endpoints)."""
+    where_clauses = ["b.boe_approval_date::date BETWEEN %s AND %s"]
+    params: List[Any] = [start_date, end_date]
+    vessel_names = [n.strip() for n in (vessel_name_keywords or []) if n and n.strip()]
+    if vessel_names:
+        parts = []
+        for _ in vessel_names:
+            parts.append("(COALESCE(b.vessel_carrier,'') ILIKE %s OR COALESCE(b.shipping_line_name,'') ILIKE %s)")
+        where_clauses.append(f"({' OR '.join(parts)})")
+        for n in vessel_names:
+            params.append(f"%{n}%")
+            params.append(f"%{n}%")
+    if boe_no and boe_no.strip():
+        where_clauses.append("b.boe_no = %s")
+        params.append(boe_no.strip())
+    if bl_number and bl_number.strip():
+        where_clauses.append("b.bl_number = %s")
+        params.append(bl_number.strip())
+    if importer_tins and len(importer_tins) > 0:
+        tins_clean = [t.strip() for t in importer_tins if t and t.strip()]
+        if tins_clean:
+            placeholders = ", ".join(["%s"] * len(tins_clean))
+            where_clauses.append(f"b.importer_tin IN ({placeholders})")
+            params.extend(tins_clean)
+    elif importer_tin and importer_tin.strip():
+        where_clauses.append("b.importer_tin = %s")
+        params.append(importer_tin.strip())
+    if importer_name_keywords and importer_name_keywords.strip():
+        where_clauses.append("b.importer_name ILIKE %s")
+        params.append(f"%{importer_name_keywords.strip()}%")
+    if item_description_keywords and item_description_keywords.strip():
+        where_clauses.append("b.item_description ILIKE %s")
+        params.append(f"%{item_description_keywords.strip()}%")
+    if hs_code_prefix and hs_code_prefix.strip():
+        where_clauses.append("b.item_hs_code LIKE %s")
+        params.append(f"{hs_code_prefix.strip()}%")
+    pkg = [x.strip() for x in (package_types or []) if x and x.strip()]
+    if pkg:
+        placeholders = ", ".join(["%s"] * len(pkg))
+        where_clauses.append(f"b.package_type::text IN ({placeholders})")
+        params.extend(pkg)
+    cargo = [x.strip() for x in (cargo_types or []) if x and x.strip()]
+    if cargo:
+        placeholders = ", ".join(["%s"] * len(cargo))
+        where_clauses.append(f"b.cargo_type::text IN ({placeholders})")
+        params.extend(cargo)
+    ports_d = [x.strip() for x in (ports_discharge or []) if x and x.strip()]
+    if ports_d:
+        placeholders = ", ".join(["%s"] * len(ports_d))
+        where_clauses.append(f"b.port_of_discharge::text IN ({placeholders})")
+        params.extend(ports_d)
+    pol_kw = [x.strip() for x in (port_of_loading_keywords or []) if x and x.strip()]
+    if pol_kw:
+        parts = []
+        for _ in pol_kw:
+            parts.append("b.port_of_loading::text ILIKE %s")
+        where_clauses.append(f"({' OR '.join(parts)})")
+        for k in pol_kw:
+            params.append(f"%{k}%")
+    return " AND ".join(where_clauses), params
+
+
+def _importer_freq_label(avg_days: Optional[int]) -> str:
+    if avg_days is None:
+        return "Single shipment"
+    if avg_days <= 7:
+        return "Weekly or more"
+    if avg_days <= 21:
+        return "Fortnightly to monthly"
+    if avg_days <= 60:
+        return "Monthly"
+    if avg_days <= 120:
+        return "Quarterly"
+    if avg_days <= 365:
+        return "Yearly"
+    return "Less than yearly"
+
+
+@app.get("/reports/boe-header-analytics/dimension")
+async def get_boe_header_dimension(
+    dim: str = Query(..., description="One of: importers, ports_loading, ports_discharge, shipping_lines, hs_codes, cargo_type, package_type"),
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    boe_no: Optional[str] = Query(None),
+    bl_number: Optional[str] = Query(None),
+    importer_tin: Optional[str] = Query(None),
+    importer_tins: Optional[List[str]] = Query(None),
+    importer_name_keywords: Optional[str] = Query(None),
+    item_description_keywords: Optional[str] = Query(None),
+    hs_code_prefix: Optional[str] = Query(None),
+    vessel_name_keywords: Optional[List[str]] = Query(None),
+    package_types: Optional[List[str]] = Query(None),
+    cargo_types: Optional[List[str]] = Query(None),
+    ports_discharge: Optional[List[str]] = Query(None),
+    port_of_loading_keywords: Optional[List[str]] = Query(None),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=2000),
+):
+    """Paginated full list for a dimension (for Read more tables). Returns { items, total }."""
+    if dim not in ("importers", "ports_loading", "ports_discharge", "shipping_lines", "hs_codes", "cargo_type", "package_type"):
+        raise HTTPException(status_code=400, detail="Invalid dim")
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    where_sql, base_params = _boe_analytics_where_clauses(
+        start_date, end_date, boe_no, bl_number, importer_tin, importer_tins,
+        importer_name_keywords, item_description_keywords, hs_code_prefix, vessel_name_keywords,
+        package_types, cargo_types, ports_discharge, port_of_loading_keywords,
+    )
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        items: List[Dict[str, Any]] = []
+        total = 0
+
+        if dim == "importers":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT b.importer_name, b.importer_tin,
+                        COUNT(DISTINCT b.boe_no)::int AS boe_count, COUNT(*)::int AS item_count,
+                        COALESCE(SUM(b.net_weight), 0)::float AS net_weight,
+                        MIN(b.boe_approval_date)::date AS first_date, MAX(b.boe_approval_date)::date AS last_date
+                    FROM boe_header b
+                    WHERE {where_sql} AND (b.importer_name IS NOT NULL OR b.importer_tin IS NOT NULL)
+                    GROUP BY b.importer_name, b.importer_tin
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            for r in rows:
+                boe_count = r["boe_count"] or 0
+                first_d, last_d = r["first_date"], r["last_date"]
+                avg_days = None
+                if boe_count > 1 and first_d and last_d:
+                    try:
+                        span_days = (last_d - first_d).days
+                    except TypeError:
+                        span_days = int((last_d - first_d).total_seconds() / 86400)
+                    avg_days = max(0, int(span_days / (boe_count - 1)))
+                items.append({
+                    "importer_name": r["importer_name"] or "N/A",
+                    "importer_tin": r["importer_tin"] or "",
+                    "boe_count": boe_count,
+                    "item_count": r["item_count"] or 0,
+                    "net_weight": round(float(r["net_weight"] or 0), 2),
+                    "avg_days_between": avg_days,
+                    "frequency": _importer_freq_label(avg_days),
+                })
+
+        elif dim == "ports_loading":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT port_of_loading AS port, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.port_of_loading IS NOT NULL AND TRIM(b.port_of_loading::text) != ''
+                    GROUP BY port_of_loading
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"port": r["port"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        elif dim == "ports_discharge":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT port_of_discharge AS port, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.port_of_discharge IS NOT NULL AND TRIM(b.port_of_discharge::text) != ''
+                    GROUP BY port_of_discharge
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"port": r["port"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        elif dim == "shipping_lines":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT shipping_line_name AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.shipping_line_name IS NOT NULL AND TRIM(b.shipping_line_name) != ''
+                    GROUP BY shipping_line_name
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"name": r["name"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        elif dim == "hs_codes":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT LEFT(b.item_hs_code, 4) AS hs_code, COUNT(*)::int AS count, COALESCE(SUM(b.net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.item_hs_code IS NOT NULL AND LENGTH(TRIM(b.item_hs_code)) >= 4
+                    GROUP BY LEFT(b.item_hs_code, 4)
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"hs_code": r["hs_code"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        elif dim == "cargo_type":
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT cargo_type AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.cargo_type IS NOT NULL
+                    GROUP BY cargo_type
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"name": r["name"] or "N/A", "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        else:  # package_type
+            cursor.execute(f"""
+                WITH agg AS (
+                    SELECT package_type AS name, COUNT(*)::int AS count, COALESCE(SUM(net_weight), 0)::float AS net_weight
+                    FROM boe_header b WHERE {where_sql} AND b.package_type IS NOT NULL AND TRIM(b.package_type::text) != ''
+                    GROUP BY package_type
+                ),
+                counted AS (SELECT agg.*, COUNT(*) OVER ()::int AS total FROM agg ORDER BY net_weight DESC)
+                SELECT * FROM counted OFFSET %s LIMIT %s
+            """, tuple(base_params) + (offset, limit))
+            rows = cursor.fetchall()
+            total = rows[0]["total"] if rows else 0
+            items = [{"name": r["name"], "count": r["count"], "net_weight": round(float(r["net_weight"] or 0), 2)} for r in rows]
+
+        return {"items": items, "total": total}
+    except Exception as e:
+        print(f"Dimension endpoint error: {e}")
+        raise HTTPException(status_code=500, detail="Dimension query failed.")
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/reports/boe-header-analytics/export")
+async def get_boe_header_analytics_export(
+    start_date: date = Query(..., description="BOE approval date start (inclusive)"),
+    end_date: date = Query(..., description="BOE approval date end (inclusive)"),
+    boe_no: Optional[str] = Query(None),
+    bl_number: Optional[str] = Query(None),
+    importer_tin: Optional[str] = Query(None),
+    importer_tins: Optional[List[str]] = Query(None),
+    importer_name_keywords: Optional[str] = Query(None),
+    item_description_keywords: Optional[str] = Query(None),
+    hs_code_prefix: Optional[str] = Query(None),
+    vessel_name_keywords: Optional[List[str]] = Query(None),
+    package_types: Optional[List[str]] = Query(None),
+    cargo_types: Optional[List[str]] = Query(None),
+    ports_discharge: Optional[List[str]] = Query(None),
+    port_of_loading_keywords: Optional[List[str]] = Query(None),
+):
+    """Returns full matching dataset as CSV (no row limit) for download."""
+    conn = get_api_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+    where_sql, params = _boe_analytics_where_clauses(
+        start_date, end_date, boe_no, bl_number, importer_tin, importer_tins,
+        importer_name_keywords, item_description_keywords, hs_code_prefix, vessel_name_keywords,
+        package_types, cargo_types, ports_discharge, port_of_loading_keywords,
+    )
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute(f"""
+            SELECT b.boe_no, b.boe_approval_date, b.bl_number, b.importer_name, b.importer_tin,
+                   b.port_of_loading, b.port_of_discharge, b.shipping_line_name, b.vessel_carrier,
+                   b.item_hs_code, b.item_description, b.cargo_type, b.package_type, b.net_weight, b.gross_weight
+            FROM boe_header b
+            WHERE {where_sql}
+            ORDER BY b.boe_approval_date DESC
+        """, tuple(params))
+        rows = cursor.fetchall()
+        buf = io.StringIO()
+        colnames = ["boe_no", "boe_approval_date", "bl_number", "importer_name", "importer_tin", "port_of_loading", "port_of_discharge", "shipping_line_name", "vessel_carrier", "item_hs_code", "item_description", "cargo_type", "package_type", "net_weight", "gross_weight"]
+        w = csv.writer(buf)
+        w.writerow(colnames)
+        for r in rows:
+            dt = (r["boe_approval_date"].strftime("%Y-%m-%d") if hasattr(r["boe_approval_date"], "strftime") else str(r["boe_approval_date"])[:10]) if r["boe_approval_date"] else ""
+            w.writerow([
+                r["boe_no"], dt, r["bl_number"], r["importer_name"], r["importer_tin"],
+                r["port_of_loading"], r["port_of_discharge"], r["shipping_line_name"], r.get("vessel_carrier"),
+                r["item_hs_code"], r.get("item_description"), r["cargo_type"], r["package_type"],
+                round(float(r["net_weight"] or 0), 2), round(float(r["gross_weight"] or 0), 2),
+            ])
+        return Response(content=buf.getvalue().encode("utf-8"), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=boe_analytics_export.csv"})
+    except Exception as e:
+        print(f"Export error: {e}")
+        raise HTTPException(status_code=500, detail="Export failed.")
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.get("/health")
 async def health_check():
